@@ -2,7 +2,6 @@
 将区域内方块分割为小块。
 """
 
-from typing import Any, Generator
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
 
@@ -20,13 +19,15 @@ class SpiltBlockRange(BlockRange):
         super().__init__(pos1, pos2)
         self.max_spilt = max_spilt
 
-    def __iter__(self) -> Generator[BlockRange, Any, None]:
-        for x in range(int(self.delta_x // self.max_spilt + 1)):
-            for y in range(int(self.delta_y // self.max_spilt + 1)):
-                for z in range(int(self.delta_z // self.max_spilt + 1)):
+    def __iter__(self):
+        for x in range(round(self.p1.x), round(self.p2.x), self.max_spilt):
+            for y in range(round(self.p1.y), round(self.p2.y), self.max_spilt):
+                for z in range(round(self.p1.z), round(self.p2.z), self.max_spilt):
                     yield BlockRange(
                         Position(x, y, z),
                         Position(
-                            x + self.max_spilt, y + self.max_spilt, z + self.max_spilt
+                            min(self.p2.x, x + self.max_spilt - 1),
+                            min(self.p2.y, y + self.max_spilt - 1),
+                            min(self.p2.z, z + self.max_spilt - 1),
                         ),
                     )
