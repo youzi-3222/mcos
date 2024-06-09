@@ -5,7 +5,7 @@
 import time
 from mcpi.minecraft import Minecraft, CmdPlayer
 from minecraft.block.range import BlockRange
-from minecraft.block.spilt import SpiltBlockRange
+from minecraft.block.split import SplitBlockRange
 from minecraft.position import Position
 
 MAX_DIST = 64
@@ -50,7 +50,7 @@ class World:
         block: int,
         data: int = 0,
         *,
-        max_spilt: int = 8,
+        max_split: int = 8,
         hollow: bool = False,
     ):
         """
@@ -68,9 +68,9 @@ class World:
             ]
             for face in faces:
                 print(face)
-                self.fill(face, block, data, max_spilt=max_spilt, hollow=False)
+                self.fill(face, block, data, max_split=max_split, hollow=False)
         else:
-            blocks = SpiltBlockRange(block_range.p1, block_range.p2, max_spilt)
+            blocks = SplitBlockRange(block_range.p1, block_range.p2, max_split)
             start_pos = self.player.getPos()
             print(f"{start_pos=}")
             for pixel in blocks:
@@ -78,8 +78,8 @@ class World:
                     abs(self.player_pos.x - pixel.p1.x) > MAX_DIST
                     or abs(self.player_pos.z - pixel.p1.z) > MAX_DIST
                 ):
-                    # self.player.setPos(*pixel.p1.delta(1, max_spilt, 1).list)
-                    print(pixel.p1.delta(1, max_spilt, 1))
+                    # self.player.setPos(*pixel.p1.delta(1, max_split, 1).list)
+                    print(pixel.p1.delta(1, max_split, 1))
                 print(*pixel)
                 self.game.setBlocks(*pixel, block, data)
                 time.sleep(FILL_DELAY)

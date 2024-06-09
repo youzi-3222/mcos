@@ -6,7 +6,7 @@ from minecraft.block.range import BlockRange
 from minecraft.position import Position
 
 
-class SpiltBlockRange(BlockRange):
+class SplitBlockRange(BlockRange):
     """
     一个区域内方块的集合。
 
