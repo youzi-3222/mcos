@@ -22,12 +22,8 @@ class Position:
         self.y = y
         self.z = z
 
-    @property
-    def list(self):
-        """
-        获取 `[x, y, z]`。
-        """
-        return [self.x, self.y, self.z]
+    def __iter__(self):
+        return (x for x in [self.x, self.y, self.z])
 
     def delta(self, delta_x: float, delta_y: float, delta_z: float):
         """

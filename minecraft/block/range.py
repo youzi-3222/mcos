@@ -23,12 +23,8 @@ class BlockRange:
             max(pos1.x, pos2.x), max(pos1.y, pos2.y), max(pos1.z, pos2.z)
         )
 
-    @property
-    def list(self):
-        """
-        获取 `[x1, y1, z1, x2, y2, z2]`。
-        """
-        return [*self.p1.list, *self.p2.list]
+    def __iter__(self):
+        return (x for x in [*self.p1, *self.p2])
 
     @property
     def delta_x(self) -> float:
