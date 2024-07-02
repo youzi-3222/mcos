@@ -9,7 +9,7 @@ class BlockRange:
     """
     一个区域内方块的集合。
 
-    保证 `p1` 的每个坐标值总小于（等于）`p2`。
+    保证 `p1` 在每个轴上的坐标值总小于（等于）`p2`。
     """
 
     p1: Position
@@ -25,6 +25,9 @@ class BlockRange:
 
     def __iter__(self):
         return (x for x in [*self.p1, *self.p2])
+
+    def __str__(self):
+        return f"[{self.p1}, {self.p2}]"
 
     @property
     def delta_x(self) -> float:
