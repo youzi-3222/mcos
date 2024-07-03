@@ -13,10 +13,9 @@ def main():
     """
     主函数。
     """
-    time.sleep(5)
-    world.fill(BlockRange(Position(0, 5, 0), Position(0, 5, 0).delta(180, 10, 72)), 0)
-
-    # Disk(Position(0, 5, 0), Position(0, 5, 0).delta(128, 128, 128)).generate_shell()
+    # time.sleep(5)
+    d = Disk(Position(0, 6, 0), Position(0, 6, 0).delta(8, 16, 8))
+    print(d.size)
 
 
 if __name__ == "__main__":

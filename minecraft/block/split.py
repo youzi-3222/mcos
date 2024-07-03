@@ -6,28 +6,20 @@ from minecraft.block.range import BlockRange
 from minecraft.position import Position
 
 
-class SplitBlockRange(BlockRange):
+def split(block_range: BlockRange, max_split: int = 8):
     """
-    一个区域内方块的集合。
-
-    保证 `p1` 的每个坐标值总小于（等于）`p2`。
-
-    提供分割方块功能。
+    将区域内方块分割成小块。
     """
-
-    def __init__(self, pos1: Position, pos2: Position, max_spilt: int = 8) -> None:
-        super().__init__(pos1, pos2)
-        self.max_spilt = max_spilt
-
-    def __iter__(self):
-        for x in range(round(self.p1.x), round(self.p2.x), self.max_spilt):
-            for y in range(round(self.p1.y), round(self.p2.y), self.max_spilt):
-                for z in range(round(self.p1.z), round(self.p2.z), self.max_spilt):
-                    yield BlockRange(
-                        Position(x, y, z),
-                        Position(
-                            min(self.p2.x, x + self.max_spilt - 1),
-                            min(self.p2.y, y + self.max_spilt - 1),
-                            min(self.p2.z, z + self.max_spilt - 1),
-                        ),
-                    )
+    for x in range(round(block_range.p1.x), round(block_range.p2.x) + 1, max_split):
+        for y in range(round(block_range.p1.y), round(block_range.p2.y) + 1, max_split):
+            for z in range(
+                round(block_range.p1.z), round(block_range.p2.z) + 1, max_split
+            ):
+                yield BlockRange(
+                    Position(x, y, z),
+                    Position(
+                        min(block_range.p2.x, x + max_split - 1),
+                        min(block_range.p2.y, y + max_split - 1),
+                        min(block_range.p2.z, z + max_split - 1),
+                    ),
+                )

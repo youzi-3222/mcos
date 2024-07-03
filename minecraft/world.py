@@ -5,7 +5,7 @@
 import time
 from mcpi.minecraft import Minecraft, CmdPlayer
 from minecraft.block.range import BlockRange
-from minecraft.block.split import SplitBlockRange
+from minecraft.block.split import split
 from minecraft.position import Position
 
 MAX_DIST = 64
@@ -76,7 +76,8 @@ class World:
                 self.fill(face, block, data, max_split=max_split, hollow=False)
         else:
             start_pos = self.player.getPos()
-            for pixel in SplitBlockRange(block_range.p1, block_range.p2, max_split):
+            for pixel in split(block_range, max_split):
+                print(pixel)
                 if (
                     abs(self.player_pos.x - pixel.p1.x) > MAX_DIST
                     or abs(self.player_pos.z - pixel.p1.z) > MAX_DIST

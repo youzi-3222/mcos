@@ -55,7 +55,7 @@ def _get_data(block: int) -> int:
         return 0
 
 
-def encode(data: bytes) -> list[int]:
+def encode_data(data: list[int]) -> list[int]:
     """
     将数据编码为方块 ID。每个数据值需在 0-31 之间。
     """
@@ -65,8 +65,8 @@ def encode(data: bytes) -> list[int]:
         raise ValueError("Invalid data") from e
 
 
-def decode(data: list[int]) -> bytes:
+def decode_data(data: list[int]) -> list[int]:
     """
-    将方块 ID 解码为数据。
+    将方块 ID 解码为五位数据。
     """
-    return bytes([_get_data(x) for x in data])
+    return [_get_data(x) for x in data]

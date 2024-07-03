@@ -2,10 +2,12 @@
 硬盘。
 """
 
+import math
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
 from minecraft.world import world
-from syscore.mem.external.blocks import encode, decode
+from syscore.mem.external.blocks import encode_data, decode_data
+from syscore.mem.external.coding import bytes2digits, digits2bytes
 
 
 class Disk(BlockRange):
@@ -40,19 +42,26 @@ class Disk(BlockRange):
             self.loc // (self.delta_x * self.delta_y),
         )
 
+    @property
+    def size(self) -> int:
+        """大小，单位为比特（8 位）。"""
+        return math.floor(
+            round(self.delta_x) * round(self.delta_y) * round(self.delta_z) * 0.625
+        )
+
     def generate_shell(self):
         """
         生成外壳。
         """
         world.fill(
             BlockRange(self.p1.delta(-2, -2, -2), self.p2.delta(2, 2, 2)),
-            block=251,
+            block=251,  # 混凝土
             data=8,
             hollow=True,
         )
         world.fill(
             BlockRange(self.p1.delta(-1, -1, -1), self.p2.delta(1, 1, 1)),
-            block=49,
+            block=49,  # 黑曜石
             hollow=True,
         )
 
@@ -64,13 +73,13 @@ class Disk(BlockRange):
         for _ in range(length):
             blocks.append(world.get(self.loc_pos))
             self.loc += 1
-        return decode(blocks)
+        return digits2bytes(decode_data(blocks))
 
     def write(self, data: bytes):
         """
         写入。
         """
-        blocks = encode(data)
+        blocks = encode_data(bytes2digits(data))
         for block in blocks:
             world.set(self.loc_pos, block)
             self.loc += 1
