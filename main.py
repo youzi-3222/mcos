@@ -15,7 +15,6 @@ def main():
     """
     # time.sleep(5)
     d = Disk(Position(0, 6, 0), Position(0, 6, 0).delta(8, 16, 8))
-    print(d.size)
 
 
 if __name__ == "__main__":
