@@ -64,21 +64,29 @@ def _hamming_decode(data: bytes) -> bytes:
     )
 
 
-def bytes2digits(data: bytes) -> list[int]:
+def bytes2digits(
+    data: bytes, padding: int = 0, inherit: int = 0
+) -> tuple[list[int], int]:
     """
     将 bytes 转换为五位整数列表。
+
+    ### 返回值
+
+    - 列表：整数列表。
+    - 整数：最后一位实际存储的二进制数据位数，即最后一位的指针前进位数。
     """
     binary_str = "".join(f"{byte:08b}" for byte in data)
-    # print(binary_str)
 
-    padding = 5 - len(binary_str) % 5
-    binary_str += "0" * padding
-    # print(binary_str)
+    padding_new = (5 - len(binary_str) - padding) % 5
+    binary_str += "0" * padding_new
+    result = [int(binary_str[i : i + 5], 2) for i in range(padding, len(binary_str), 5)]
+    if padding != 0:
+        result = [int(binary_str[:padding], 2) + inherit, *result]
 
-    return [int(binary_str[i : i + 5], 2) for i in range(0, len(binary_str), 5)]
+    return result, (5 - padding_new) % 5
 
 
-def digits2bytes(decimal: list[int]) -> bytes:
+def digits2bytes(decimal: list[int], padding: int = 0) -> bytes:
     """
     将五位整数列表转为 bytes。
     """
@@ -86,14 +94,10 @@ def digits2bytes(decimal: list[int]) -> bytes:
     binary_str = "".join(f"{num:05b}" for num in decimal)
 
     # 从二进制字符串中读取字节
-    # 注意：这里我们假设 binary_str 的长度是 8 的倍数，或者我们至少可以处理到它结束的地方
-    bytes_list = []
-    for i in range(0, len(binary_str), 8):
+    bytes_list = [int(binary_str[:padding], 2)] if padding != 0 else []
+    for i in range(padding, len(binary_str), 8):
         byte_str = binary_str[i : i + 8]
         if len(byte_str) < 8:
-            # 预期最后补的是零
-            if "1" in byte_str:
-                raise ValueError("Invalid binary string")
             break
         bytes_list.append(int(byte_str, 2))
 

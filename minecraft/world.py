@@ -77,7 +77,6 @@ class World:
         else:
             start_pos = self.player.getPos()
             for pixel in split(block_range, max_split):
-                # print(pixel)
                 if (
                     abs(self.player_pos.x - pixel.p1.x) > MAX_DIST
                     or abs(self.player_pos.z - pixel.p1.z) > MAX_DIST

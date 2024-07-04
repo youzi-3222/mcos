@@ -6,7 +6,7 @@ import math
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
 from minecraft.world import world
-from syscore.mem.external.blocks import encode_data, decode_data
+from syscore.mem.external.blocks import digits2block, block2digits
 from syscore.mem.external.coding import bytes2digits, digits2bytes
 
 VERSION_CODE = 1
@@ -47,10 +47,11 @@ class Disk(BlockRange):
         """
         磁头指针指向的方块。
         """
+        block = self.loc // 5
         return self.p1.delta(
-            (self.loc // self.delta_y) % self.delta_x,
-            (self.loc) % self.delta_y,
-            self.loc // (self.delta_x * self.delta_y),
+            (block // self.delta_y) % self.delta_x,
+            block % self.delta_y,
+            block // (self.delta_x * self.delta_y),
         )
 
     @property
@@ -87,30 +88,44 @@ class Disk(BlockRange):
     def read(self, length: int) -> bytes:
         """
         读取。
-        """
-        blocks = []
-        for _ in range(length):
-            blocks.append(world.get(self.loc_pos))
-            self.loc += 1
-        return digits2bytes(decode_data(blocks))
 
-    def write(self, data: bytes, length: bool = False):
+        这段代码能跑，请不要动它。
+        """
+        padding = self.loc % 5
+        blocks = []
+        for _ in range(length // 5):
+            blocks.append(world.get(self.loc_pos))
+            self.loc += 5
+        if (padding_new := (length % 5)) != 0:
+            last = int(
+                bin(block2digits([world.get(self.loc_pos)])[0])[2:][padding_new], 2
+            )
+            self.loc += padding_new
+        else:
+            last = None
+        return digits2bytes(block2digits(blocks), padding=padding) + (
+            bytes([last]) if last is not None else b""
+        )
+
+    def write(self, data: bytes):
         """
         写入。
 
-        ### 参数
-        - `length`：是否在数据之前写入长度。
+        这段代码能跑，请不要动它。
         """
-        blocks = encode_data(bytes2digits(data))
-        if length:
-            blocks = encode_data(bytes2digits(bytes(len(blocks)) + b";" + data))
+        self.loc = self.loc - (padding := self.loc % 5)
+        digits, padding_new = bytes2digits(
+            data, padding, self.read(padding)[0] if padding != 0 else 0
+        )
+        blocks = digits2block(digits)
         if (len(blocks) + self.loc) >= self.size:
             raise ValueError(
                 f"Out of range: at {self.loc}, write {len(blocks)}, size {self.size}"
             )
         for block in blocks:
             world.set(self.loc_pos, block)
-            self.loc += 1
+            self.loc += 5
+        self.loc -= 5 - padding_new
 
     def _clear(self):
         """
@@ -143,7 +158,9 @@ class Disk(BlockRange):
         self.ptr_len = len(hex(self.size)) - 2
         # 计算逻辑块长度
         logical_count = math.floor(self.size / logical)
-        super_info += hex(logical_count + 4)[2:].zfill(self.ptr_len)  # 索引节点指针
+        super_info += hex(logical_count + 3 + self.ptr_len)[2:].zfill(
+            self.ptr_len
+        )  # 索引节点指针
         self.write(super_info.encode())
 
         self.write((logical_count * "0").encode())  # 位图
