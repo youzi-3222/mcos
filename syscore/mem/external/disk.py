@@ -13,6 +13,10 @@ VERSION_CODE = 1
 """
 版本号。
 """
+INODE_RATE = 0.05
+"""
+索引节点占硬盘总空间的比例。
+"""
 
 
 class Disk(BlockRange):
@@ -60,6 +64,9 @@ class Disk(BlockRange):
     def size(self) -> int:
         """大小，单位为五位二进制。"""
         return round(self.delta_x) * round(self.delta_y) * round(self.delta_z)
+
+    ptr_len: int
+    """指针长度。"""
 
     def generate_shell(self):
         """
@@ -122,14 +129,21 @@ class Disk(BlockRange):
 
     def format(self, logical: int = 1024):
         """
-        格式化（未完成）。
+        格式化（未测试）。
 
         ### 参数
         - `logical`：每个逻辑块的大小，单位为五位二进制（个方块）。
         """
         self._clear()
         self.loc = 0
+
         super_info = ""
-        super_info += hex(VERSION_CODE)[2:].zfill(2)
-        super_info += hex(len(hex(self.size)) - 2)[2:]
+        super_info += hex(VERSION_CODE)[2:].zfill(2)  # 版本号
+        super_info += hex(len(hex(self.size)) - 2)[2:].zfill(1)  # 指针长度
+        self.ptr_len = len(hex(self.size)) - 2
+        # 计算逻辑块长度
+        logical_count = math.floor(self.size / logical)
+        super_info += hex(logical_count + 4)[2:].zfill(self.ptr_len)  # 索引节点指针
         self.write(super_info.encode())
+
+        self.write((logical_count * "0").encode())  # 位图
