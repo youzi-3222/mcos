@@ -38,14 +38,14 @@ BLOCKS = [
 ]
 
 
-def _get_block(data: int) -> int:
+def get_block(data: int) -> int:
     """
     获取方块 ID。`data` 需在 0-31 之间。
     """
     return BLOCKS[data]
 
 
-def _get_data(block: int) -> int:
+def get_data(block: int) -> int:
     """
     获取方块数据。不抛出异常。
     """
@@ -60,7 +60,7 @@ def digits2block(data: list[int]) -> list[int]:
     将数据编码为方块 ID。每个数据值需在 0-31 之间。
     """
     try:
-        return [_get_block(x) for x in data]
+        return [get_block(x) for x in data]
     except KeyError as e:
         raise ValueError("Invalid data") from e
 
@@ -69,4 +69,4 @@ def block2digits(data: list[int]) -> list[int]:
     """
     将方块 ID 解码为五位数据。
     """
-    return [_get_data(x) for x in data]
+    return [get_data(x) for x in data]

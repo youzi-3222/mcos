@@ -6,8 +6,14 @@ import math
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
 from minecraft.world import world
-from syscore.mem.external.blocks import digits2block, block2digits
-from syscore.mem.external.coding import bytes2digits, digits2bytes
+from syscore.mem.external.blocks import digits2block, block2digits, get_block, get_data
+from syscore.mem.external.coding import (
+    bin2digits,
+    bytes2digits,
+    digits2bytes,
+    bin2bytes,
+    bytes2bin,
+)
 
 VERSION_CODE = 1
 """
@@ -44,15 +50,27 @@ class Disk(BlockRange):
 
     @property
     def loc_pos(self) -> Position:
-        """
-        磁头指针指向的方块。
-        """
+        """磁头指针指向的方块。"""
         block = self.loc // 5
         return self.p1.delta(
             (block // self.delta_y) % self.delta_x,
             block % self.delta_y,
             block // (self.delta_x * self.delta_y),
         )
+
+    @property
+    def loc_bin(self):
+        """磁头指针指向方块的二进制数据。"""
+        return bin(get_data(world.get(self.loc_pos))).replace("0b", "").zfill(5)
+
+    @loc_bin.setter
+    def loc_bin(self, other: str):
+        world.set(self.loc_pos, get_block(world.get(self.loc_pos)), int(other, 2))
+
+    @property
+    def loc_int(self):
+        """磁头指针指向方块的整数数据。可能不完整。"""
+        return get_data(world.get(self.loc_pos))
 
     @property
     def bit(self) -> int:
@@ -88,44 +106,35 @@ class Disk(BlockRange):
     def read(self, length: int) -> bytes:
         """
         读取。
-
-        这段代码能跑，请不要动它。
         """
+        # 说白了，就是从一堆方块里面整出二进制数据，然后拿出我想要的
         padding = self.loc % 5
-        blocks = []
-        for _ in range(length // 5):
-            blocks.append(world.get(self.loc_pos))
+        start_pos = self.loc
+        binary = ""
+        for _ in range(length // 5 + 2):
+            binary += self.loc_bin
             self.loc += 5
-        if (padding_new := (length % 5)) != 0:
-            last = int(
-                bin(block2digits([world.get(self.loc_pos)])[0])[2:][padding_new], 2
-            )
-            self.loc += padding_new
-        else:
-            last = None
-        return digits2bytes(block2digits(blocks), padding=padding) + (
-            bytes([last]) if last is not None else b""
-        )
+
+        self.loc = start_pos + length
+        return bin2bytes(binary[padding : padding + length])
 
     def write(self, data: bytes):
         """
         写入。
-
-        这段代码能跑，请不要动它。
         """
-        self.loc = self.loc - (padding := self.loc % 5)
-        digits, padding_new = bytes2digits(
-            data, padding, self.read(padding)[0] if padding != 0 else 0
-        )
-        blocks = digits2block(digits)
-        if (len(blocks) + self.loc) >= self.size:
-            raise ValueError(
-                f"Out of range: at {self.loc}, write {len(blocks)}, size {self.size}"
-            )
+        # 其实就是把二进制数据补全，然后写进方块
+        padding = self.loc % 5
+        binary = self.loc_bin[:padding]
+        print(binary)
+        if padding != 0:
+            self.loc -= padding
+        binary += bytes2bin(data)
+        print(binary)
+        blocks = digits2block(bin2digits(binary))
         for block in blocks:
             world.set(self.loc_pos, block)
             self.loc += 5
-        self.loc -= 5 - padding_new
+        self.loc -= 5 - len(binary) % 5
 
     def _clear(self):
         """
@@ -134,11 +143,11 @@ class Disk(BlockRange):
         try:
             self.loc = 0
             while True:
-                self.write(b"\x00")
+                self.write(b"\x00\x00\x00\x00\x00")
         except ValueError:
             self.loc = 0
             return True
-        except:
+        except:  # pylint: disable=W0702
             self.loc = 0
             return False
 
@@ -149,18 +158,16 @@ class Disk(BlockRange):
         ### 参数
         - `logical`：每个逻辑块的大小，单位为五位二进制（个方块）。
         """
-        self._clear()
+        # self._clear()
         self.loc = 0
 
-        super_info = ""
-        super_info += hex(VERSION_CODE)[2:].zfill(2)  # 版本号
-        super_info += hex(len(hex(self.size)) - 2)[2:].zfill(1)  # 指针长度
+        self.write(hex(VERSION_CODE)[2:].zfill(2).encode())  # 版本号
+        self.write(hex(len(hex(self.size)) - 2)[2:].zfill(1).encode())  # 指针长度
         self.ptr_len = len(hex(self.size)) - 2
         # 计算逻辑块长度
         logical_count = math.floor(self.size / logical)
-        super_info += hex(logical_count + 3 + self.ptr_len)[2:].zfill(
-            self.ptr_len
+        self.write(
+            hex(logical_count + 3 + self.ptr_len)[2:].zfill(self.ptr_len).encode()
         )  # 索引节点指针
-        self.write(super_info.encode())
 
         self.write((logical_count * "0").encode())  # 位图

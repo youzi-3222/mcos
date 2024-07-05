@@ -2,11 +2,12 @@
 程序入口点。
 """
 
+import sys
 import time
 from minecraft.position import Position
 from minecraft.world import world
 from minecraft.block.range import BlockRange
-from syscore.mem.external.coding import bytes2digits
+from syscore.mem.external.coding import bytes2bin
 from syscore.mem.external.disk import Disk
 
 

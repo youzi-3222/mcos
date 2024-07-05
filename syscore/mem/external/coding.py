@@ -64,26 +64,23 @@ def _hamming_decode(data: bytes) -> bytes:
     )
 
 
-def bytes2digits(
-    data: bytes, padding: int = 0, inherit: int = 0
-) -> tuple[list[int], int]:
+def bytes2digits(data: bytes) -> list[int]:
     """
-    将 bytes 转换为五位整数列表。
-
-    ### 返回值
-
-    - 列表：整数列表。
-    - 整数：最后一位实际存储的二进制数据位数，即最后一位的指针前进位数。
+    将 bytes 转换为五位整数列表。会在最后补全。
     """
     binary_str = "".join(f"{byte:08b}" for byte in data)
+    padding = 5 - len(binary_str) % 5
+    binary_str += "0" * padding
+    return [int(binary_str[i : i + 5], 2) for i in range(0, len(binary_str), 5)]
 
-    padding_new = (5 - len(binary_str) - padding) % 5
-    binary_str += "0" * padding_new
-    result = [int(binary_str[i : i + 5], 2) for i in range(padding, len(binary_str), 5)]
-    if padding != 0:
-        result = [int(binary_str[:padding], 2) + inherit, *result]
 
-    return result, (5 - padding_new) % 5
+def bin2digits(binary: str) -> list[int]:
+    """
+    将 bytes 转换为五位整数列表。会在最后补全。
+    """
+    padding = 5 - len(binary) % 5
+    binary += "0" * padding
+    return [int(binary[i : i + 5], 2) for i in range(0, len(binary), 5)]
 
 
 def digits2bytes(decimal: list[int], padding: int = 0) -> bytes:
@@ -102,3 +99,29 @@ def digits2bytes(decimal: list[int], padding: int = 0) -> bytes:
         bytes_list.append(int(byte_str, 2))
 
     return bytes(bytes_list)
+
+
+def digits2bin(decimal: list[int]) -> str:
+    """
+    将五位整数列表转为二进制。
+    """
+    # 拼接所有二进制字符串
+    return "".join(f"{num:05b}" for num in decimal)
+
+
+def bin2bytes(binary: str) -> bytes:
+    """
+    将二进制字符串转为 bytes。
+    """
+    byte_list = bytearray()
+    for i in range(0, len(binary), 8):
+        byte_list.append(int(binary[i : i + 8], 2))
+
+    return bytes(byte_list)
+
+
+def bytes2bin(data: bytes) -> str:
+    """
+    将 bytes 转为二进制字符串。
+    """
+    return "".join(f"{byte:08b}" for byte in data)
