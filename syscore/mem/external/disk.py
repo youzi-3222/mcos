@@ -6,14 +6,8 @@ import math
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
 from minecraft.world import world
-from syscore.mem.external.blocks import digits2block, block2digits, get_block, get_data
-from syscore.mem.external.coding import (
-    bin2digits,
-    bytes2digits,
-    digits2bytes,
-    bin2bytes,
-    bytes2bin,
-)
+from syscore.mem.external.blocks import digits2block, get_block, get_data
+from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
 
 VERSION_CODE = 1
 """
@@ -158,7 +152,7 @@ class Disk(BlockRange):
         ### 参数
         - `logical`：每个逻辑块的大小，单位为五位二进制（个方块）。
         """
-        # self._clear()
+        self._clear()
         self.loc = 0
 
         self.write(hex(VERSION_CODE)[2:].zfill(2).encode())  # 版本号
