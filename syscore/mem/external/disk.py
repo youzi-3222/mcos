@@ -8,6 +8,7 @@ from minecraft.position import Position
 from minecraft.world import world
 from syscore.mem.external.blocks import digits2block, get_block, get_data
 from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
+from syscore.base import int2bin, int2hex
 
 VERSION_CODE = 1
 """
@@ -16,6 +17,10 @@ VERSION_CODE = 1
 INODE_RATE = 0.05
 """
 索引节点占硬盘总空间的比例。
+"""
+DENTRY_RATE = 0.03
+"""
+目录项占硬盘总空间的比例。
 """
 
 
@@ -130,6 +135,12 @@ class Disk(BlockRange):
             self.loc += 5
         self.loc -= 5 - len(binary) % 5
 
+    def logical_write(self, loc: int, data: bytes):
+        """
+        写入逻辑块。
+        """
+        self.loc = loc * 1024
+
     def _clear(self):
         """
         清空。
@@ -147,7 +158,7 @@ class Disk(BlockRange):
 
     def format(self, logical: int = 1024):
         """
-        格式化（未测试）。
+        格式化。
 
         ### 参数
         - `logical`：每个逻辑块的大小，单位为五位二进制（个方块）。
@@ -156,6 +167,7 @@ class Disk(BlockRange):
         self.loc = 0
 
         self.write(hex(VERSION_CODE)[2:].zfill(2).encode())  # 版本号
+        self.write(int2hex(logical, 4).encode())  # 逻辑块长度
         self.write(hex(len(hex(self.size)) - 2)[2:].zfill(1).encode())  # 指针长度
         self.ptr_len = len(hex(self.size)) - 2
         # 计算逻辑块长度

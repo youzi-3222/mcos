@@ -23,9 +23,26 @@ class Dentry:
     name: str
     """目录名。"""
 
-    def __init__(self, loc: Optional[int]):
-        if loc:
-            self.loc = loc
+    def load(self, data: bytes, ptr_len: int):
+        """
+        从 bytes 中加载数据。
+        """
+        data_list = data.split(b",")
+
+        self.parent = int(data[:ptr_len], 16)
+        self.inode = int(data[ptr_len : 2 * ptr_len], 16)
+
+        child_dir = data_list[1]
+        for i in range(len(child_dir) // ptr_len):
+            self.child_dir.append(int(child_dir[i * ptr_len : (i + 1) * ptr_len], 16))
+
+        child_files = data_list[2]
+        for i in range(len(child_files) // ptr_len):
+            self.child_files.append(
+                int(child_files[i * ptr_len : (i + 1) * ptr_len], 16)
+            )
+
+        self.name = data_list[3].decode()
 
     def tobytes(self, ptr_len: int):
         """
