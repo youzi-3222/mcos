@@ -3,6 +3,7 @@
 """
 
 import math
+from typing import Optional
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
 from minecraft.world import world
@@ -13,10 +14,6 @@ from syscore.base import int2bin
 VERSION_CODE = 1
 """
 版本号。
-"""
-DENTRY_RATE = 0.03
-"""
-目录项占硬盘总空间的比例。
 """
 
 
@@ -33,7 +30,7 @@ class Disk(BlockRange):
 
     @property
     def loc(self) -> int:
-        """磁头指针位置。"""
+        """磁头指针位置（位）。"""
         return self._loc
 
     @loc.setter
@@ -78,7 +75,14 @@ class Disk(BlockRange):
         return round(self.delta_x) * round(self.delta_y) * round(self.delta_z)
 
     ptr_len: int
-    """指针长度。"""
+    """指针长度（位）。"""
+    logical_len: int
+    """逻辑块长度（位）。"""
+
+    @property
+    def actual_logical(self) -> int:
+        """实际逻辑块长度（位）。"""
+        return self.logical_len - self.ptr_len - 1
 
     def generate_shell(self):
         """
@@ -185,12 +189,28 @@ class Disk(BlockRange):
             self.loc += 5
         self.loc -= 5 - len(binary) % 5
 
-    def logical_write(self, logical: int, data: bytes):
+    def logical_write(
+        self, logical: int, data: bytes, is_dentry: Optional[bool] = None
+    ):
         """
-        写入逻辑块。
+        写入逻辑块（未完成）。
         """
-        self.loc = logical * 1024
-        self.write(data)
+        raise NotImplementedError("未完成：写入逻辑块")
+        self.loc = logical * self.logical_len
+        if is_dentry is not None:
+            self._write_bin("1" if is_dentry else "0")  # 指明是否为目录项
+        else:
+            self.loc += 1  # 不操作
+        for i in range(len(data) // self.actual_logical):
+            self.write(data[i * self.actual_logical : (i + 1) * self.actual_logical])
+        self.write(data[(len(data) // self.actual_logical) * self.actual_logical :])
+
+    def logical_clear(self, logical: int):
+        """
+        清空逻辑块。
+        """
+        self.loc = logical * self.logical_len
+        self._write_bin("0" * self.logical_len)
 
     def _clear(self):
         """
@@ -212,16 +232,19 @@ class Disk(BlockRange):
         格式化。
 
         ### 参数
-        - `logical`：每个逻辑块的大小，单位为字节（八位）。
+        - `logical`：每个逻辑块的大小，单位为字节。
         """
+        if not 512 <= logical <= 0xFFFF:
+            raise ValueError(f"逻辑块大小不合法：应为 [512, 65535]，实为 {logical}。")
         self._clear()
         self.loc = 0
+        self.logical_len = logical * 8
 
+        self._write_bin("0")  # 超级块也要指明是否为目录项
         self._write_num(VERSION_CODE, 2)  # 版本号
         self._write_num(logical, 4)  # 逻辑块长度
-        self.ptr_len = len(hex(self.size)) - 2
+        self.ptr_len = len(bin(self.size)) - 2
         self._write_num(self.ptr_len, 1)  # 指针长度
-        self._write_num(self.size, self.ptr_len)  # 索引节点指针
         # 计算逻辑块长度
         logical_count = math.floor(self.bit / logical)
 
