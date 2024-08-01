@@ -76,7 +76,7 @@ def bytes2digits(data: bytes) -> list[int]:
 
 def bin2digits(binary: str) -> list[int]:
     """
-    将 bytes 转换为五位整数列表。会在最后补全。
+    将二进制数转换为五位整数列表。会在最后补全。
     """
     padding = 5 - len(binary) % 5
     binary += "0" * padding

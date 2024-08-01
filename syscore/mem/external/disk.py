@@ -59,16 +59,16 @@ class Disk(BlockRange):
 
     @property
     def loc_bin(self):
-        """磁头指针指向方块的二进制数据。"""
+        """磁头指针指向方块的二进制数据。总是五位。"""
         return bin(get_data(world.get(self.loc_pos))).replace("0b", "").zfill(5)
 
     @loc_bin.setter
     def loc_bin(self, other: str):
-        world.set(self.loc_pos, get_block(world.get(self.loc_pos)), int(other, 2))
+        world.set(self.loc_pos, get_block(int(other, 2)))
 
     @property
     def loc_int(self):
-        """磁头指针指向方块的整数数据。可能不完整。"""
+        """磁头指针指向方块的整数数据。总是五位二进制。"""
         return get_data(world.get(self.loc_pos))
 
     @property
@@ -102,7 +102,28 @@ class Disk(BlockRange):
             hollow=True,
         )
 
-    def read(self, length: int) -> bytes:
+    def _load_super(self):
+        """
+        加载超级块。未完成。
+        """
+        self.loc = 0
+        int(self.read(2 * 8).decode(), 16)
+
+    def _read_num(self, length_bin: int) -> int:
+        """
+        读取数字。
+        """
+        padding = self.loc % 5
+        start_pos = self.loc
+        binary = ""
+        for _ in range(length_bin // 5 + 2):
+            binary += self.loc_bin
+            self.loc += 5
+
+        self.loc = start_pos + length_bin
+        return int(binary[padding : padding + length_bin], 2)
+
+    def read(self, length_bin: int) -> bytes:
         """
         读取。
         """
@@ -110,12 +131,47 @@ class Disk(BlockRange):
         padding = self.loc % 5
         start_pos = self.loc
         binary = ""
-        for _ in range(length // 5 + 2):
+        for _ in range(length_bin // 5 + 2):
             binary += self.loc_bin
             self.loc += 5
 
-        self.loc = start_pos + length
-        return bin2bytes(binary[padding : padding + length])
+        self.loc = start_pos + length_bin
+        return bin2bytes(binary[padding : padding + length_bin])
+
+    def _write_bin(self, data: str):
+        """
+        写入二进制数据。
+        """
+        if data.startswith("0b"):
+            data = data[2:]
+        padding = self.loc % 5
+        binary = self.loc_bin[:padding]
+        if padding != 0:
+            self.loc -= padding
+        binary += data
+        blocks = digits2block(bin2digits(binary))
+        for block in blocks:
+            world.set(self.loc_pos, block)
+            self.loc += 5
+        self.loc -= 5 - len(binary) % 5
+
+    def _write_num(self, data: int, length_hex: int):
+        """
+        写入数字。
+        """
+        # 其实就是把二进制数据补全，然后写进方块
+        padding = self.loc % 5
+        binary = self.loc_bin[:padding]
+
+        if padding != 0:
+            self.loc -= padding
+        binary += int2bin(data, length_hex * 4)
+
+        blocks = digits2block(bin2digits(binary))
+        for block in blocks:
+            world.set(self.loc_pos, block)
+            self.loc += 5
+        self.loc -= 5 - len(binary) % 5
 
     def write(self, data: bytes):
         """
@@ -124,22 +180,23 @@ class Disk(BlockRange):
         # 其实就是把二进制数据补全，然后写进方块
         padding = self.loc % 5
         binary = self.loc_bin[:padding]
-        print(binary)
+
         if padding != 0:
             self.loc -= padding
         binary += bytes2bin(data)
-        print(binary)
+
         blocks = digits2block(bin2digits(binary))
         for block in blocks:
             world.set(self.loc_pos, block)
             self.loc += 5
         self.loc -= 5 - len(binary) % 5
 
-    def logical_write(self, loc: int, data: bytes):
+    def logical_write(self, logical: int, data: bytes):
         """
         写入逻辑块。
         """
-        self.loc = loc * 1024
+        self.loc = logical * 1024
+        self.write(data)
 
     def _clear(self):
         """
@@ -161,19 +218,16 @@ class Disk(BlockRange):
         格式化。
 
         ### 参数
-        - `logical`：每个逻辑块的大小，单位为五位二进制（个方块）。
+        - `logical`：每个逻辑块的大小，单位为二进制位。
         """
         self._clear()
         self.loc = 0
 
-        self.write(hex(VERSION_CODE)[2:].zfill(2).encode())  # 版本号
-        self.write(int2hex(logical, 4).encode())  # 逻辑块长度
-        self.write(hex(len(hex(self.size)) - 2)[2:].zfill(1).encode())  # 指针长度
+        self._write_num(VERSION_CODE, 2)  # 版本号
+        self._write_num(logical, 4)  # 逻辑块长度
         self.ptr_len = len(hex(self.size)) - 2
+        self._write_num(self.ptr_len, 1)  # 指针长度
         # 计算逻辑块长度
         logical_count = math.floor(self.size / logical)
-        self.write(
-            hex(logical_count + 3 + self.ptr_len)[2:].zfill(self.ptr_len).encode()
-        )  # 索引节点指针
 
-        self.write((logical_count * "0").encode())  # 位图
+        self._write_bin((logical_count * "0"))  # 位图
