@@ -8,12 +8,18 @@ PS：别骂了别骂了，是我菜，只会写 Python……
 
 ## 运行
 
-1. 启动 Minecraft 服务器。需安装 [RaspberryJuice](https://github.com/zhuowei/RaspberryJuice) 插件。
+1. 启动 Minecraft 1.12 服务器。需安装 [RaspberryJuice](https://github.com/zhuowei/RaspberryJuice) 插件。
 2. 启动 `main.py`。
 
 ```bash
 python main.py
 ```
+
+## 贡献
+
+您可以向该储存库提交 PR。
+
+下面还有一些文档，希望能帮助您看懂我的代码（💩）。
 
 ## 文件系统
 
