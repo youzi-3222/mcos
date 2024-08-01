@@ -14,10 +14,6 @@ VERSION_CODE = 1
 """
 版本号。
 """
-INODE_RATE = 0.05
-"""
-索引节点占硬盘总空间的比例。
-"""
 DENTRY_RATE = 0.03
 """
 目录项占硬盘总空间的比例。
@@ -73,10 +69,8 @@ class Disk(BlockRange):
 
     @property
     def bit(self) -> int:
-        """大小，单位为比特（8 位）。"""
-        return math.floor(
-            round(self.delta_x) * round(self.delta_y) * round(self.delta_z) * 0.625
-        )
+        """大小，单位为字节（8 位）。"""
+        return math.floor(self.size * 0.625)
 
     @property
     def size(self) -> int:
@@ -218,7 +212,7 @@ class Disk(BlockRange):
         格式化。
 
         ### 参数
-        - `logical`：每个逻辑块的大小，单位为二进制位。
+        - `logical`：每个逻辑块的大小，单位为字节（八位）。
         """
         self._clear()
         self.loc = 0
@@ -227,7 +221,8 @@ class Disk(BlockRange):
         self._write_num(logical, 4)  # 逻辑块长度
         self.ptr_len = len(hex(self.size)) - 2
         self._write_num(self.ptr_len, 1)  # 指针长度
+        self._write_num(self.size, self.ptr_len)  # 索引节点指针
         # 计算逻辑块长度
-        logical_count = math.floor(self.size / logical)
+        logical_count = math.floor(self.bit / logical)
 
         self._write_bin((logical_count * "0"))  # 位图
