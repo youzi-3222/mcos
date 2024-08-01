@@ -8,7 +8,7 @@ from minecraft.position import Position
 from minecraft.world import world
 from syscore.mem.external.blocks import digits2block, get_block, get_data
 from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
-from syscore.base import int2bin, int2hex
+from syscore.base import int2bin
 
 VERSION_CODE = 1
 """
