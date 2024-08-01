@@ -2,7 +2,7 @@
 表示目录项的数据类。
 """
 
-from typing import Union
+from typing import Union, overload
 
 
 class Dentry:
@@ -22,6 +22,11 @@ class Dentry:
     """目录名。"""
     data: str
     """其它数据。"""
+
+    @overload
+    def load(self, data: bytes, ptr_len: int): ...
+    @overload
+    def load(self, data: dict, ptr_len: int): ...
 
     def load(self, data: Union[bytes, dict], ptr_len: int):
         """
