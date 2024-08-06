@@ -13,9 +13,9 @@ class Dentry:
     loc: int
     """位置。"""
     parent: int
-    """父目录指针。"""
+    """父目录目录项的指针。"""
     children: list[int]
-    """子文件指针列表。"""
+    """子文件目录项的指针列表。"""
     inode: int
     """索引节点指针。"""
     name: str

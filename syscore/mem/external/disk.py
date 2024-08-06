@@ -11,7 +11,7 @@ from syscore.mem.external.blocks import digits2block, get_block, get_data
 from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
 from syscore.base import int2bin
 
-VERSION_CODE = 1
+VERSION_CODE = 0
 """
 版本号。
 """
@@ -67,13 +67,15 @@ class Disk(BlockRange):
     @property
     def bit(self) -> int:
         """大小，单位为字节（8 位）。"""
-        return math.floor(self.size * 0.625)
+        return math.floor(self.size * 0.125)
 
     @property
     def size(self) -> int:
-        """大小，单位为五位二进制。"""
-        return round(self.delta_x) * round(self.delta_y) * round(self.delta_z)
+        """大小，单位为位。"""
+        return round(self.delta_x) * round(self.delta_y) * round(self.delta_z) * 5
 
+    version: int
+    """版本号。"""
     ptr_len: int
     """指针长度（位）。"""
     logical_len: int
@@ -102,10 +104,53 @@ class Disk(BlockRange):
 
     def _load_super(self):
         """
-        加载超级块。未完成。
+        加载超级块。
         """
-        self.loc = 0
-        int(self.read(2 * 8).decode(), 16)
+        self.loc = 1
+        self.version = self._read_num(8)
+        self.logical_len = self._read_num(16)
+        self.ptr_len = self._read_num(4)
+
+    @property
+    def bitmap(self):
+        """
+        位图。
+        """
+        backup_loc = self.loc
+
+        self.loc = 8 * 4
+        result = self._read_bin(self.logical_count)
+
+        self.loc = backup_loc
+        return list(result)
+
+    @bitmap.setter
+    def bitmap(self, other: list):
+        backup_loc = self.loc
+
+        self.loc = 8 * 4
+        self._write_bin("".join(other))
+
+        self.loc = backup_loc
+
+    @property
+    def logical_count(self):
+        """逻辑块数量。"""
+        return math.floor(self.bit / self.logical_len)
+
+    def _read_bin(self, length_bin: int) -> str:
+        """
+        读取二进制数据。
+        """
+        padding = self.loc % 5
+        start_pos = self.loc
+        binary = ""
+        for _ in range(length_bin // 5 + 2):
+            binary += self.loc_bin
+            self.loc += 5
+
+        self.loc = start_pos + length_bin
+        return binary[padding : padding + length_bin]
 
     def _read_num(self, length_bin: int) -> int:
         """
@@ -153,7 +198,7 @@ class Disk(BlockRange):
             self.loc += 5
         self.loc -= 5 - len(binary) % 5
 
-    def _write_num(self, data: int, length_hex: int):
+    def _write_num(self, data: int, length_bin: int):
         """
         写入数字。
         """
@@ -163,7 +208,7 @@ class Disk(BlockRange):
 
         if padding != 0:
             self.loc -= padding
-        binary += int2bin(data, length_hex * 4)
+        binary += int2bin(data, length_bin)
 
         blocks = digits2block(bin2digits(binary))
         for block in blocks:
@@ -189,28 +234,84 @@ class Disk(BlockRange):
             self.loc += 5
         self.loc -= 5 - len(binary) % 5
 
+    def get_valid_logical(self):
+        """
+        获取可用的逻辑块序号。
+        """
+        return self.bitmap.index("0")
+
     def logical_write(
         self, logical: int, data: bytes, is_dentry: Optional[bool] = None
     ):
         """
         写入逻辑块（未完成）。
         """
-        raise NotImplementedError("未完成：写入逻辑块")
+        self.loc = logical * self.logical_len
+        new_logical = logical
+        for i in range(len(data) // self.actual_logical):
+            self._logical_direct_write(
+                new_logical,
+                data[i * self.actual_logical : (i + 1) * self.actual_logical],
+                is_dentry,
+            )
+        self.write(data[(len(data) // self.actual_logical) * self.actual_logical :])
+
+    def _logical_direct_write(
+        self,
+        logical: int,
+        data: bytes,
+        is_dentry: Optional[bool] = None,
+        next_logical: int = -1,
+        is_end: bool = False,
+    ):
+        """
+        直接写入逻辑块。
+
+        若指定 `next_logical`，则写入特定的下一个逻辑块指针，否则自动读取，并返回逻辑块序号。
+        """
+        if (l := len(data)) > self.actual_logical:
+            raise ValueError(
+                f"数据长度 {l} 超过逻辑块实际数据大小 {self.actual_logical}。"
+            )
         self.loc = logical * self.logical_len
         if is_dentry is not None:
             self._write_bin("1" if is_dentry else "0")  # 指明是否为目录项
         else:
             self.loc += 1  # 不操作
-        for i in range(len(data) // self.actual_logical):
-            self.write(data[i * self.actual_logical : (i + 1) * self.actual_logical])
-        self.write(data[(len(data) // self.actual_logical) * self.actual_logical :])
+        self.write(data)
+        if next_logical == -1:
+            # 自动读取下一个逻辑块
+            # 如果读到了，那么直接返回
+            # 如果没读到，那么获取到可用的逻辑块，写入，返回（唯一例外是如果 is_end 为真，则不读取并返回 -1）
+            read_next_logical = self._read_num(self.ptr_len)
+            if read_next_logical == 0:  # 没读到
+                if is_end:
+                    return -1
+                next_logical = self.get_valid_logical()
+                self.loc -= self.ptr_len
+                self._write_num(next_logical * self.logical_len, self.ptr_len)
+            # 读到了
+            return (
+                round(read_next_logical / self.logical_len)
+                if read_next_logical == 0
+                else read_next_logical
+            )
+        self.loc = (logical + 1) * self.logical_len - self.ptr_len
+        self._write_num(next_logical * self.logical_len, self.ptr_len)
+        self.bitmap[logical] = "1"
+        return next_logical
 
     def logical_clear(self, logical: int):
         """
-        清空逻辑块。
+        清空逻辑块。返回下一个逻辑块序号。
         """
         self.loc = logical * self.logical_len
-        self._write_bin("0" * self.logical_len)
+        self._write_bin("0" * (self.actual_logical + 1))
+        next_logical = self._read_num(self.ptr_len)  # 读取下一个逻辑块序号
+        self.loc -= self.ptr_len
+        self._write_num(0, self.ptr_len)  # 清空下一个逻辑块序号
+        self.bitmap[logical] = "0"
+        return next_logical
 
     def _clear(self):
         """
@@ -220,7 +321,7 @@ class Disk(BlockRange):
             self.loc = 0
             while True:
                 self.write(b"\x00\x00\x00\x00\x00")
-        except ValueError:
+        except ValueError:  # 写入完成
             self.loc = 0
             return True
         except:  # pylint: disable=W0702
@@ -234,18 +335,19 @@ class Disk(BlockRange):
         ### 参数
         - `logical`：每个逻辑块的大小，单位为字节。
         """
-        if not 512 <= logical <= 0xFFFF:
+        if not 0x200 <= logical <= 0xFFFF:
             raise ValueError(f"逻辑块大小不合法：应为 [512, 65535]，实为 {logical}。")
-        self._clear()
+        # self._clear()
         self.loc = 0
         self.logical_len = logical * 8
 
         self._write_bin("0")  # 超级块也要指明是否为目录项
-        self._write_num(VERSION_CODE, 2)  # 版本号
-        self._write_num(logical, 4)  # 逻辑块长度
+        self._write_num(VERSION_CODE, 2 * 4)  # 版本号
+        self._write_num(logical, 4 * 4)  # 逻辑块长度
         self.ptr_len = len(bin(self.size)) - 2
-        self._write_num(self.ptr_len, 1)  # 指针长度
+        self._write_num(self.ptr_len, 1 * 4)  # 指针长度
         # 计算逻辑块长度
-        logical_count = math.floor(self.bit / logical)
+        self.logical_count = math.floor(self.bit / logical)
 
-        self._write_bin((logical_count * "0"))  # 位图
+        self.bitmap = ["0" for _ in range(self.logical_count)]  # 位图
+        self.bitmap[0] = "1"
