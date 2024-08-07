@@ -19,10 +19,9 @@ def main():
     """
     # time.sleep(3)
     d = Disk(Position(0, 4, 0), Position(0, 4, 0).delta(16, 16, 16))
-    d.format()
     d._load_super()
-    print(d.bitmap)
-    print(d._logical_direct_write(1, b"Hello, Logical!", False))
+    print(d._logical_direct_read(1))
+    # print(d._logical_direct_write(1, b"Hello, Logical!", False))
 
 
 if __name__ == "__main__":

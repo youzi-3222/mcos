@@ -10,6 +10,7 @@ from minecraft.world import world
 from syscore.mem.external.blocks import digits2block, get_block, get_data
 from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
 from syscore.base import int2bin
+from syscore.mem.external.logical import Logical
 
 VERSION_CODE = 0
 """
@@ -248,6 +249,18 @@ class Disk(BlockRange):
         """
         return self.bitmap.index("0")
 
+    def logical_read(self, logical: int):
+        """
+        读取逻辑块（未完成）。
+        """
+
+    def _logical_direct_read(self, logical: int):
+        self.loc = logical * self.logical_len
+        is_dentry = self._read_bin(1) == "1"  # 是否为目录项
+        data = self.read(self.actual_logical)
+        next_logical = round(self._read_num(self.ptr_len) / self.logical_len)
+        return Logical(is_dentry, data, next_logical)
+
     def logical_write(
         self, logical: int, data: bytes, is_dentry: Optional[bool] = None
     ):
@@ -257,7 +270,7 @@ class Disk(BlockRange):
         self.loc = logical * self.logical_len
         new_logical = logical
         for i in range(len(data) // self.actual_logical):
-            self._logical_direct_write(
+            new_logical = self._logical_direct_write(
                 new_logical,
                 data[i * self.actual_logical : (i + 1) * self.actual_logical],
                 is_dentry,
