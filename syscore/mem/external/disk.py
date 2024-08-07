@@ -133,10 +133,18 @@ class Disk(BlockRange):
 
         self.loc = backup_loc
 
+    def _set_bitmap(self, key: int, val: bool):
+        backup_loc = self.loc
+
+        self.loc = 8 * 4 + key
+        self._write_bin("1" if val else "0")
+
+        self.loc = backup_loc
+
     @property
     def logical_count(self):
         """逻辑块数量。"""
-        return math.floor(self.bit / self.logical_len)
+        return math.floor(self.size / self.logical_len)
 
     def _read_bin(self, length_bin: int) -> str:
         """
@@ -279,6 +287,8 @@ class Disk(BlockRange):
         else:
             self.loc += 1  # 不操作
         self.write(data)
+        self._set_bitmap(logical, True)
+        self.loc = (logical + 1) * self.logical_len - self.ptr_len
         if next_logical == -1:
             # 自动读取下一个逻辑块
             # 如果读到了，那么直接返回
@@ -290,15 +300,14 @@ class Disk(BlockRange):
                 next_logical = self.get_valid_logical()
                 self.loc -= self.ptr_len
                 self._write_num(next_logical * self.logical_len, self.ptr_len)
+                return next_logical
             # 读到了
             return (
                 round(read_next_logical / self.logical_len)
                 if read_next_logical == 0
                 else read_next_logical
             )
-        self.loc = (logical + 1) * self.logical_len - self.ptr_len
         self._write_num(next_logical * self.logical_len, self.ptr_len)
-        self.bitmap[logical] = "1"
         return next_logical
 
     def logical_clear(self, logical: int):
@@ -310,7 +319,7 @@ class Disk(BlockRange):
         next_logical = self._read_num(self.ptr_len)  # 读取下一个逻辑块序号
         self.loc -= self.ptr_len
         self._write_num(0, self.ptr_len)  # 清空下一个逻辑块序号
-        self.bitmap[logical] = "0"
+        self._set_bitmap(logical, False)
         return next_logical
 
     def _clear(self):
@@ -347,7 +356,6 @@ class Disk(BlockRange):
         self.ptr_len = len(bin(self.size)) - 2
         self._write_num(self.ptr_len, 1 * 4)  # 指针长度
         # 计算逻辑块长度
-        self.logical_count = math.floor(self.bit / logical)
 
         self.bitmap = ["0" for _ in range(self.logical_count)]  # 位图
-        self.bitmap[0] = "1"
+        self._set_bitmap(0, True)
