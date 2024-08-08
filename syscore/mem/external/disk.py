@@ -10,7 +10,7 @@ from minecraft.world import world
 from syscore.mem.external.blocks import digits2block, get_block, get_data
 from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
 from syscore.base import int2bin
-from syscore.mem.external.logical import Logical
+from syscore.mem.external.logical import Logical, LogicalResult
 
 VERSION_CODE = 0
 """
@@ -251,8 +251,19 @@ class Disk(BlockRange):
 
     def logical_read(self, logical: int):
         """
-        读取逻辑块（未完成）。
+        读取逻辑块。
         """
+        result = bytearray()
+        is_dentry = None
+        next_logical = logical
+        while True:
+            result += (read_logical := self._logical_direct_read(next_logical)).data
+            next_logical = read_logical.next_logical
+            if is_dentry is None:
+                is_dentry = read_logical.is_dentry
+            if next_logical == 0:
+                break
+        return LogicalResult(is_dentry, bytes(result))
 
     def _logical_direct_read(self, logical: int):
         self.loc = logical * self.logical_len
@@ -269,18 +280,23 @@ class Disk(BlockRange):
         """
         self.loc = logical * self.logical_len
         new_logical = logical
-        for i in range(len(data) // self.actual_logical):
+        bin_data = bytes2bin(data)
+        for i in range(len(bin_data) // self.actual_logical + 1):
             new_logical = self._logical_direct_write(
                 new_logical,
-                data[i * self.actual_logical : (i + 1) * self.actual_logical],
+                bin_data[
+                    i
+                    * self.actual_logical : min(
+                        (i + 1) * self.actual_logical, len(bin_data)
+                    )
+                ],
                 is_dentry,
             )
-        self.write(data[(len(data) // self.actual_logical) * self.actual_logical :])
 
     def _logical_direct_write(
         self,
         logical: int,
-        data: bytes,
+        data: str,
         is_dentry: Optional[bool] = None,
         next_logical: int = -1,
         is_end: bool = False,
@@ -292,14 +308,14 @@ class Disk(BlockRange):
         """
         if (l := len(data)) > self.actual_logical:
             raise ValueError(
-                f"数据长度 {l} 超过逻辑块实际数据大小 {self.actual_logical}。"
+                f"数据长度 {l} 位超过逻辑块实际数据大小 {self.actual_logical} 位。"
             )
         self.loc = logical * self.logical_len
         if is_dentry is not None:
             self._write_bin("1" if is_dentry else "0")  # 指明是否为目录项
         else:
             self.loc += 1  # 不操作
-        self.write(data)
+        self._write_bin(data)
         self._set_bitmap(logical, True)
         self.loc = (logical + 1) * self.logical_len - self.ptr_len
         if next_logical == -1:
@@ -315,11 +331,7 @@ class Disk(BlockRange):
                 self._write_num(next_logical * self.logical_len, self.ptr_len)
                 return next_logical
             # 读到了
-            return (
-                round(read_next_logical / self.logical_len)
-                if read_next_logical == 0
-                else read_next_logical
-            )
+            return read_next_logical // self.logical_len
         self._write_num(next_logical * self.logical_len, self.ptr_len)
         return next_logical
 
@@ -359,7 +371,7 @@ class Disk(BlockRange):
         """
         if not 0x200 <= logical <= 0xFFFF:
             raise ValueError(f"逻辑块大小不合法：应为 [512, 65535]，实为 {logical}。")
-        # self._clear()
+        self._clear()
         self.loc = 0
         self.logical_len = logical * 8
 
@@ -372,3 +384,4 @@ class Disk(BlockRange):
 
         self.bitmap = ["0" for _ in range(self.logical_count)]  # 位图
         self._set_bitmap(0, True)
+        self._load_super()
