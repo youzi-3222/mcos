@@ -2,6 +2,7 @@
 硬盘。
 """
 
+from concurrent.futures import ThreadPoolExecutor
 import math
 from typing import Optional
 from minecraft.block.range import BlockRange
@@ -16,6 +17,18 @@ VERSION_CODE = 0
 """
 版本号。
 """
+
+
+def loc2pos(p1: Position, dx: float, dy: float, loc: int) -> Position:
+    """
+    获取指定位置的坐标。
+    """
+    block = loc // 5
+    return p1.delta(
+        (block // dy) % dx,
+        block % dy,
+        block // (dx * dy),
+    )
 
 
 class Disk(BlockRange):
@@ -44,12 +57,7 @@ class Disk(BlockRange):
     @property
     def loc_pos(self) -> Position:
         """磁头指针指向的方块。"""
-        block = self.loc // 5
-        return self.p1.delta(
-            (block // self.delta_y) % self.delta_x,
-            block % self.delta_y,
-            block // (self.delta_x * self.delta_y),
-        )
+        return loc2pos(self.p1, self.delta_x, self.delta_y, self.loc)
 
     @property
     def loc_bin(self):
