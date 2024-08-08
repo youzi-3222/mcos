@@ -2,7 +2,6 @@
 硬盘。
 """
 
-from concurrent.futures import ThreadPoolExecutor
 import math
 from typing import Optional
 from minecraft.block.range import BlockRange
@@ -16,6 +15,10 @@ from syscore.mem.external.logical import Logical, LogicalResult
 VERSION_CODE = 0
 """
 版本号。
+"""
+BITMAP_START = 7
+"""
+位图起始点指针，单位为半字节（位十六进制）。
 """
 
 
@@ -115,7 +118,7 @@ class Disk(BlockRange):
         """
         加载超级块。
         """
-        self.loc = 1
+        self.loc = 0
         self.version = self._read_num(8)
         self.logical_len = self._read_num(16)
         self.ptr_len = self._read_num(4)
@@ -127,7 +130,7 @@ class Disk(BlockRange):
         """
         backup_loc = self.loc
 
-        self.loc = 8 * 4
+        self.loc = 7 * 4
         result = self._read_bin(self.logical_count)
 
         self.loc = backup_loc
@@ -137,7 +140,7 @@ class Disk(BlockRange):
     def bitmap(self, other: list):
         backup_loc = self.loc
 
-        self.loc = 8 * 4
+        self.loc = 7 * 4
         self._write_bin("".join(other))
 
         self.loc = backup_loc
@@ -145,7 +148,7 @@ class Disk(BlockRange):
     def _set_bitmap(self, key: int, val: bool):
         backup_loc = self.loc
 
-        self.loc = 8 * 4 + key
+        self.loc = 7 * 4 + key
         self._write_bin("1" if val else "0")
 
         self.loc = backup_loc
@@ -284,7 +287,7 @@ class Disk(BlockRange):
         self, logical: int, data: bytes, is_dentry: Optional[bool] = None
     ):
         """
-        写入逻辑块（未完成）。
+        写入逻辑块。
         """
         self.loc = logical * self.logical_len
         new_logical = logical
@@ -383,13 +386,13 @@ class Disk(BlockRange):
         self.loc = 0
         self.logical_len = logical * 8
 
-        self._write_bin("0")  # 超级块也要指明是否为目录项
         self._write_num(VERSION_CODE, 2 * 4)  # 版本号
         self._write_num(logical, 4 * 4)  # 逻辑块长度
         self.ptr_len = len(bin(self.size)) - 2
         self._write_num(self.ptr_len, 1 * 4)  # 指针长度
-        # 计算逻辑块长度
 
         self.bitmap = ["0" for _ in range(self.logical_count)]  # 位图
-        self._set_bitmap(0, True)
+        len_bitmap = len(self.bitmap)
+        for i in range((len_bitmap + 7 * 4) // self.logical_len + 1):
+            self._set_bitmap(i, True)
         self._load_super()
