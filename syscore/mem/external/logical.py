@@ -11,8 +11,8 @@ class Logical:
     逻辑块。
     """
 
-    is_dentry: bool
-    """是否为目录项。"""
+    is_inode: bool
+    """是否为索引节点。"""
     data: bytes
     """数据。"""
     next_logical: int
@@ -25,7 +25,7 @@ class LogicalResult:
     逻辑块读取结果。
     """
 
-    is_dentry: bool
-    """是否为目录项。"""
+    is_inode: bool
+    """是否为索引节点。"""
     data: bytes
     """数据。"""

@@ -4,6 +4,9 @@
 
 from typing import Union, overload
 
+from syscore.base import int2bin
+from syscore.mem.external.coding import bin2bytes
+
 
 class Dentry:
     """
@@ -22,11 +25,11 @@ class Dentry:
     """目录名。"""
 
     @overload
-    def load(self, data: bytes, ptr_len: int): ...
+    def __init__(self, data: bytes, ptr_len: int): ...
     @overload
-    def load(self, data: dict, ptr_len: int): ...
+    def __init__(self, data: dict, ptr_len: int): ...
 
-    def load(self, data: Union[bytes, dict], ptr_len: int):
+    def __init__(self, data: Union[bytes, dict], ptr_len: int):
         """
         从 bytes 或 dict 中加载数据。
         """
@@ -58,16 +61,17 @@ class Dentry:
 
     def tobytes(self, ptr_len: int):
         """
-        将目录项转为硬盘可以存储的 bytes。
+        将目录项转为硬盘可以存储的 bytes（未完成）。
         """
-        result = bytearray()
-        result.extend(hex(self.parent)[2:].zfill(ptr_len).encode())
-        result.extend(hex(self.inode)[2:].zfill(ptr_len).encode())
+        result = ""
+        result += int2bin(self.parent, ptr_len)
+        result += int2bin(self.inode, ptr_len)
         for child in self.children:
-            result.extend(hex(child)[2:].zfill(ptr_len).encode())
-        result.extend(b",")
-        result.extend(self.name.encode())
-        return bytes(result)
+            result += int2bin(child, ptr_len)
+        bt = bytearray()
+        bt.extend(b",")
+        bt.extend(self.name.encode())
+        return bytes(bin2bytes(result) + bt)
 
     def todict(self):
         """
@@ -80,3 +84,12 @@ class Dentry:
             "inode": self.inode,
             "name": self.name,
         }
+
+
+def bytes2dentry_list(data: bytes, ptr_len: int):
+    """
+    将 bytes 转为 Dentry 列表（未完成）。
+    """
+    split_data = data.split(b"?")
+    for d in split_data:
+        yield Dentry(d, ptr_len)

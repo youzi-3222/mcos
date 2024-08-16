@@ -3,6 +3,7 @@
 """
 
 import math
+from pathlib import Path
 from typing import Optional
 from minecraft.block.range import BlockRange
 from minecraft.position import Position
@@ -10,6 +11,8 @@ from minecraft.world import world
 from syscore.mem.external.blocks import digits2block, get_block, get_data
 from syscore.mem.external.coding import bin2digits, bin2bytes, bytes2bin
 from syscore.base import int2bin
+from syscore.mem.external.dentry import Dentry
+from syscore.mem.external.inode import Inode
 from syscore.mem.external.logical import Logical, LogicalResult
 
 VERSION_CODE = 0
@@ -265,27 +268,25 @@ class Disk(BlockRange):
         读取逻辑块。
         """
         result = bytearray()
-        is_dentry = None
+        is_inode = None
         next_logical = logical
         while True:
             result += (read_logical := self._logical_direct_read(next_logical)).data
             next_logical = read_logical.next_logical
-            if is_dentry is None:
-                is_dentry = read_logical.is_dentry
+            if is_inode is None:
+                is_inode = read_logical.is_inode
             if next_logical == 0:
                 break
-        return LogicalResult(is_dentry, bytes(result))
+        return LogicalResult(is_inode, bytes(result))
 
     def _logical_direct_read(self, logical: int):
         self.loc = logical * self.logical_len
-        is_dentry = self._read_bin(1) == "1"  # 是否为目录项
+        is_inode = self._read_bin(1) == "1"  # 是否为索引节点
         data = self.read(self.actual_logical)
         next_logical = round(self._read_num(self.ptr_len) / self.logical_len)
-        return Logical(is_dentry, data, next_logical)
+        return Logical(is_inode, data, next_logical)
 
-    def logical_write(
-        self, logical: int, data: bytes, is_dentry: Optional[bool] = None
-    ):
+    def logical_write(self, logical: int, data: bytes, is_inode: Optional[bool] = None):
         """
         写入逻辑块。
         """
@@ -301,14 +302,14 @@ class Disk(BlockRange):
                         (i + 1) * self.actual_logical, len(bin_data)
                     )
                 ],
-                is_dentry,
+                is_inode,
             )
 
     def _logical_direct_write(
         self,
         logical: int,
         data: str,
-        is_dentry: Optional[bool] = None,
+        is_inode: Optional[bool] = None,
         next_logical: int = -1,
         is_end: bool = False,
     ):
@@ -322,8 +323,8 @@ class Disk(BlockRange):
                 f"数据长度 {l} 位超过逻辑块实际数据大小 {self.actual_logical} 位。"
             )
         self.loc = logical * self.logical_len
-        if is_dentry is not None:
-            self._write_bin("1" if is_dentry else "0")  # 指明是否为目录项
+        if is_inode is not None:
+            self._write_bin("1" if is_inode else "0")  # 指明是否为索引节点
         else:
             self.loc += 1  # 不操作
         self._write_bin(data)
@@ -396,3 +397,24 @@ class Disk(BlockRange):
         for i in range((len_bitmap + 7 * 4) // self.logical_len + 1):
             self._set_bitmap(i, True)
         self._load_super()
+
+    inode: list[int] = []
+    """索引节点所在逻辑块的序号列表。"""
+
+    def load(self):
+        """
+        挂载（重载）。
+        """
+        self._load_super()
+        self.inode = []
+        for i in range(self.logical_count):
+            self.loc = i * self.logical_len
+            if self._read_bin(1) != "1":  # 是否为索引节点
+                continue
+            # 是索引节点，先挂载再说
+            # self.inode.append()
+
+    def searchfor(self, path: Path):
+        """
+        搜索一个文件，将目录项对象保存到内存，并返回索引。
+        """
