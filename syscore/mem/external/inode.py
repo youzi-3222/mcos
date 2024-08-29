@@ -25,7 +25,7 @@ class ACCESS(enum.Enum):
     """系统。只有系统可读写，任何用户只读。"""
 
 
-ACCESS_LENGTH = 2
+ACCESS_LENGTH = 4
 """
 访问权限的长度，位。
 
@@ -59,9 +59,8 @@ class Inode:
         if not inode or not ptr_len:
             return
         try:
-            split = inode.split(b"?", 1)
-            self.path = Path(split[1].decode())
-            data = bytes2bin(split[0])
+            self.path = Path(inode[:256].replace(b"\x00", b"").decode())
+            data = bytes2bin(inode[256:])
             self.length = int(data[:ptr_len], 2)
             self.access = ACCESS(int(data[ptr_len : ptr_len + ACCESS_LENGTH], 2))
             self.create_time = int(
@@ -81,13 +80,13 @@ class Inode:
         """
         将 inode 转换为 bytes。
         """
-        result = ""
-        result += int2bin(self.length, ptr_len)
-        result += int2bin(self.access.value, ACCESS_LENGTH)
-        result += int2bin(self.create_time, 64)  # 防止 2038 年爆炸，这里用 64 位时间戳
-        result += int2bin(self.modify_time, 64)
-        result += int2bin(self.data, ptr_len)
-        result = bin2bytes(result)
-        result += b"?"
-        result += self.path.as_posix().encode()
+        result = self.path.as_posix().encode().ljust(256, b"\x00")
+        bin_result = ""
+        bin_result += int2bin(self.length, ptr_len)
+        bin_result += int2bin(self.access.value, ACCESS_LENGTH)
+        # 防止 2038 年爆炸，这里用 64 位时间戳
+        bin_result += int2bin(self.create_time, 64)
+        bin_result += int2bin(self.modify_time, 64)
+        bin_result += int2bin(self.data, ptr_len)
+        result += bin2bytes(bin_result)
         return result

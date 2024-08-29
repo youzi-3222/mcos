@@ -124,7 +124,7 @@ class Disk(BlockRange):
         self.loc = 0
         self.version = self._read_num(8)
         self.logical_len = self._read_num(16)
-        self.ptr_len = self._read_num(4)
+        self.ptr_len = self._read_num(12)
 
     @property
     def bitmap(self):
@@ -133,7 +133,7 @@ class Disk(BlockRange):
         """
         backup_loc = self.loc
 
-        self.loc = 7 * 4
+        self.loc = 9 * 4
         result = self._read_bin(self.logical_count)
 
         self.loc = backup_loc
@@ -143,7 +143,7 @@ class Disk(BlockRange):
     def bitmap(self, other: list):
         backup_loc = self.loc
 
-        self.loc = 7 * 4
+        self.loc = 9 * 4
         self._write_bin("".join(other))
 
         self.loc = backup_loc
@@ -151,7 +151,7 @@ class Disk(BlockRange):
     def _set_bitmap(self, key: int, val: bool):
         backup_loc = self.loc
 
-        self.loc = 7 * 4 + key
+        self.loc = 9 * 4 + key
         self._write_bin("1" if val else "0")
 
         self.loc = backup_loc
@@ -390,11 +390,11 @@ class Disk(BlockRange):
         self._write_num(VERSION_CODE, 2 * 4)  # 版本号
         self._write_num(logical, 4 * 4)  # 逻辑块长度
         self.ptr_len = len(bin(self.size)) - 2
-        self._write_num(self.ptr_len, 1 * 4)  # 指针长度
+        self._write_num(self.ptr_len, 3 * 4)  # 指针长度
 
         self.bitmap = ["0" for _ in range(self.logical_count)]  # 位图
         len_bitmap = len(self.bitmap)
-        for i in range((len_bitmap + 7 * 4) // self.logical_len + 1):
+        for i in range((len_bitmap + 9 * 4) // self.logical_len + 1):
             self._set_bitmap(i, True)
         self._load_super()
 
@@ -411,10 +411,13 @@ class Disk(BlockRange):
             self.loc = i * self.logical_len
             if self._read_bin(1) != "1":  # 是否为索引节点
                 continue
-            # 是索引节点，先挂载再说
-            # self.inode.append()
+            # 是索引节点
+            self.inode.append(i)
 
     def searchfor(self, path: Path):
         """
-        搜索一个文件，将目录项对象保存到内存，并返回索引。
+        搜索一个文件，将目录项对象保存到内存，并返回索引。（未完成）
         """
+        for d in path.as_posix().split("/"):
+            if d.endswith(":"):
+                continue
