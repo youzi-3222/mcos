@@ -38,6 +38,8 @@ class Inode:
     索引节点。
     """
 
+    loc: int
+    """索引节点所在逻辑块。"""
     length: int
     """文件大小，位。"""
     access: ACCESS
@@ -54,11 +56,17 @@ class Inode:
     @overload
     def __init__(self): ...
     @overload
-    def __init__(self, inode: bytes, ptr_len: int): ...
-    def __init__(self, inode: Optional[bytes] = None, ptr_len: Optional[int] = None):
-        if not inode or not ptr_len:
+    def __init__(self, loc: int, inode: bytes, ptr_len: int): ...
+    def __init__(
+        self,
+        loc: Optional[int] = None,
+        inode: Optional[bytes] = None,
+        ptr_len: Optional[int] = None,
+    ):
+        if loc is None or inode is None or ptr_len is None:
             return
         try:
+            self.loc = loc
             self.path = Path(inode[:256].replace(b"\x00", b"").decode())
             data = bytes2bin(inode[256:])
             self.length = int(data[:ptr_len], 2)
@@ -80,7 +88,7 @@ class Inode:
         """
         将 inode 转换为 bytes。
         """
-        result = self.path.as_posix().encode().ljust(256, b"\x00")
+        result = self.path.as_posix().split(":", 1)[1][1:].encode().ljust(256, b"\x00")
         bin_result = ""
         bin_result += int2bin(self.length, ptr_len)
         bin_result += int2bin(self.access.value, ACCESS_LENGTH)

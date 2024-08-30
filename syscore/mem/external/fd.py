@@ -30,21 +30,34 @@
 #     """文本模式。"""
 
 
+from syscore.mem.external.inode import Inode
+
+
 class Fd:
     """
     文件描述符。
     """
 
-    inode: int
-    """索引节点指针。"""
+    drive: str
+    """盘符，例如 `C:`。"""
+    inode: Inode
+    """索引节点。"""
     mode: str
     """文件模式。"""
     open_count: int
     """打开计数。"""
 
-    def __init__(self, inode: int, mode: str = "r"):
+    def __init__(self, drive: str, inode: Inode, mode: str = "r"):
+        self.drive = drive
         self.inode = inode
         self.mode = mode.lower()
+        self.open_count = 1
+
+    def close(self):
+        """
+        关闭该文件。
+        """
+        self.open_count -= 1
 
     @property
     def is_closed(self):

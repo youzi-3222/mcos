@@ -302,8 +302,11 @@ class Disk(BlockRange):
                         (i + 1) * self.actual_logical, len(bin_data)
                     )
                 ],
-                is_inode,
+                is_inode or i == 0,
+                is_end=((i + 1) * self.actual_logical >= len(bin_data)),
             )
+        while new_logical not in (0, -1):
+            new_logical = self.logical_clear(new_logical)
 
     def _logical_direct_write(
         self,
@@ -325,6 +328,11 @@ class Disk(BlockRange):
         self.loc = logical * self.logical_len
         if is_inode is not None:
             self._write_bin("1" if is_inode else "0")  # 指明是否为索引节点
+            if is_inode:
+                self.inode.append(logical)
+                self.inode = list(set(self.inode))
+            else:
+                self.inode.remove(logical)
         else:
             self.loc += 1  # 不操作
         self._write_bin(data)
@@ -357,7 +365,9 @@ class Disk(BlockRange):
         self.loc -= self.ptr_len
         self._write_num(0, self.ptr_len)  # 清空下一个逻辑块序号
         self._set_bitmap(logical, False)
-        return next_logical
+        if logical in self.inode:
+            self.inode.remove(logical)
+        return next_logical // self.logical_len
 
     def _clear(self):
         """
@@ -416,8 +426,17 @@ class Disk(BlockRange):
 
     def searchfor(self, path: Path):
         """
-        搜索一个文件，将目录项对象保存到内存，并返回索引。（未完成）
+        搜索一个文件，返回 Inode。
         """
-        for d in path.as_posix().split("/"):
-            if d.endswith(":"):
-                continue
+        for logical in self.inode:
+            ptr = logical * self.logical_len
+            self.loc = ptr + 1
+            read_path = b""
+            while not read_path.endswith(b"\x00"):
+                read_path += self.read(8)
+            if (
+                path.as_posix().replace("\\", "/").split(":", 1)[1][1:]
+                in read_path.replace(b"\x00", b"").replace(b"\\", b"/").decode()
+            ):
+                return Inode(logical, self.logical_read(logical).data, self.ptr_len)
+        return None
