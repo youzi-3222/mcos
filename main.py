@@ -9,23 +9,12 @@
 不代表真实的文件系统或操作系统处理方式！！！
 """
 
-# import sys
-import math
 from pathlib import Path
-import sys
-import time
+
+from mcpi.connection import RequestError
 
 from minecraft.position import Position
-
-from minecraft.world import world
-
-# from minecraft.block.range import BlockRange
-# from syscore.mem.external.coding import bytes2bin
-from syscore.mem.external.blocks import BLOCKS
 from syscore.mem.external.disk import Disk
-from syscore.mem.external.coding import bytes2bin
-from syscore.mem.external.filesystem import FileSystem
-from syscore.mem.external.inode import ACCESS, Inode
 from syscore.mem.external.io import IO
 
 
@@ -43,6 +32,8 @@ def print_help():
     # print("")
     print("f <盘符>")
     print("    格式化游戏驱动器。")
+    print("g <盘符>")
+    print("    为游戏驱动器生成外壳。")
     print("")
 
 
@@ -87,14 +78,23 @@ def main():
                     print("警告：")
                     print(f"游戏驱动器 {drive} 上的所有数据都将被清除！")
                     if input("是否继续 (Y/[N])>").lower().startswith("y"):
-                        print("正在格式化——这可能需要一段时间，请勿退出程序。")
+                        print("正在格式化；这可能需要一段时间，请勿退出程序。")
                         io.fs.disks[drive.upper()].format()
+                case "g":
+                    drive = command[1]
+                    assert drive.endswith(":"), "盘符应以冒号结尾"
+                    assert len(drive) == 2, "盘符长度应为 2"
+                    assert drive[0].isalpha(), "盘符应以字母开头"
+                    print(f"正在为 {drive} 生成外壳；这可能需要一段时间。")
+                    io.fs.disks[drive.upper()].generate_shell()
                 case _:
                     print_help()
-        except KeyError:
+        except (KeyError, IndexError):
             print_help()
         except AssertionError:
             pass
+        except RequestError:
+            print("请求错误，可能因为服务器未启动，或玩家不在服务器内。")
 
 
 if __name__ == "__main__":
