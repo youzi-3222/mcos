@@ -30,9 +30,19 @@ class FileSystem:
     fd_list: dict[int, Fd] = {}
 
     def __init__(self, disks: dict[str, Disk]):
+        self.disks = disks.copy()
+        for k, d in self.disks.items():
+            try:
+                d.load()
+            except:
+                match input(
+                    f"硬盘 {k} 存在问题或未初始化，需要格式化。如果不格式化，则它将不可用。是否现在格式化 (Y/[N])?"
+                ).lower():
+                    case "y":
+                        d.format()
+                    case _:
+                        del disks[k]
         self.disks = disks
-        for d in self.disks.values():
-            d.load()
 
     def fd_open(self, path: Path, mode: str = "r"):
         """
