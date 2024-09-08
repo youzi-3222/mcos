@@ -3,7 +3,7 @@
 """
 
 import time
-from mcpi.minecraft import Minecraft, CmdPlayer
+from mcpi.minecraft import Minecraft  # , CmdPlayer
 from minecraft.block.range import BlockRange
 from minecraft.block.split import split
 from minecraft.position import Position
@@ -25,24 +25,24 @@ class World:
 
     game: Minecraft
     """Minecraft 对象。"""
-    player: CmdPlayer
-    """玩家。"""
+    # player: CmdPlayer
+    # """玩家。"""
 
     def __init__(self) -> None:
         self.game = Minecraft.create()
-        self.player = self.game.player
+        # self.player = self.game.player
 
-    @property
-    def _player_pos(self):
-        return self.player.getTilePos()
+    # @property
+    # def _player_pos(self):
+    #     return self.player.getTilePos()
 
-    @property
-    def player_pos(self) -> Position:
-        """
-        玩家坐标。
-        """
-        pos = self._player_pos
-        return Position(pos.x, pos.y, pos.z)
+    # @property
+    # def player_pos(self) -> Position:
+    #     """
+    #     玩家坐标。
+    #     """
+    #     pos = self._player_pos
+    #     return Position(pos.x, pos.y, pos.z)
 
     def set(self, pos: Position, block: int, data: int = 0):
         """
@@ -75,18 +75,18 @@ class World:
             ]:
                 self.fill(face, block, data, max_split=max_split, hollow=False)
         else:
-            start_pos = self.player.getPos()
+            # start_pos = self.player.getPos()
             for pixel in split(block_range, max_split):
-                if (
-                    abs(self.player_pos.x - pixel.p1.x) > MAX_DIST
-                    or abs(self.player_pos.z - pixel.p1.z) > MAX_DIST
-                ):
-                    self.player.setPos(*pixel.p1.delta(1, max_split, 1))
-                    time.sleep(1)
+                # if (
+                #     abs(self.player_pos.x - pixel.p1.x) > MAX_DIST
+                #     or abs(self.player_pos.z - pixel.p1.z) > MAX_DIST
+                # ):
+                #     # self.player.setPos(*pixel.p1.delta(1, max_split, 1))
+                #     time.sleep(1)
                 self.game.setBlocks(*pixel, block, data)
                 time.sleep(delay)
             time.sleep(1)
-            self.player.setPos(*start_pos)
+            # self.player.setPos(*start_pos)
 
     def get(self, block: Position):
         """

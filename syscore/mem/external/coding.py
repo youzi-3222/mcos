@@ -111,9 +111,10 @@ def digits2bin(decimal: list[int]) -> str:
 
 def bin2bytes(binary: str) -> bytes:
     """
-    将二进制字符串转为 bytes。
+    将二进制字符串转为 bytes。会在最后补全。
     """
     byte_list = bytearray()
+    binary += "0" * ((8 - len(binary)) % 8)
     for i in range(0, len(binary), 8):
         byte_list.append(int(binary[i : i + 8], 2))
 
